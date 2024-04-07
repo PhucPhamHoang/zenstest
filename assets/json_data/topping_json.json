@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "name": "Bánh quy",
+    "price": 26000.0
+  },
+  {
+    "id": 2,
+    "name": "Bánh Bông Lan Trứng Muối",
+    "price": 26000.0
+  },
+  {
+    "id": 3,
+    "name": "Bánh quy bơ",
+    "price": 26000.0
+  }
+]

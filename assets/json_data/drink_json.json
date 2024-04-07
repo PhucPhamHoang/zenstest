@@ -1,0 +1,10 @@
+{
+  "id": 1,
+  "name": "Trà Đào mix Dâu",
+  "img": "assets/images/img_prod.png",
+  "description": "Thành phần: Cà phê nguyên chất, sữa, bột béo, đường, hương liệu, ...",
+  "price": 59000.0,
+  "salePrice": 45000.0,
+  "favorite": 0.0,
+  "rating": 4.5
+}
