@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
 class AppStyle {
-  static const fontName = 'Roboto';
+  static const fontName = 'poppins';
 
   static const double fontSizeSmall = 11;
   static const double fontSizeNormal = 13;

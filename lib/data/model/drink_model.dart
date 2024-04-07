@@ -1,6 +1,4 @@
-
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/services.dart';
 
 class DrinkModel {
@@ -38,31 +36,9 @@ class DrinkModel {
     );
   }
 
-  static Future<DrinkModel?> fromJsonFile(String filePath) async {
-    try {
-      // Đọc nội dung từ tệp JSON
-      String jsonString = await File(filePath).readAsString();
-
-      // Chuyển đổi chuỗi JSON thành Map
-      Map<String, dynamic> jsonData = json.decode(jsonString);
-
-      // Tạo đối tượng DrinkModel từ Map
-      DrinkModel drinkModel = DrinkModel.fromJson(jsonData);
-
-      return drinkModel;
-    } catch (e) {
-      print('Error reading JSON file: $e');
-      return null;
-    }
-  }
-
-
-  Future<DrinkModel> getData() async {
+  static Future<DrinkModel> getData() async {
     final String response = await rootBundle.loadString('assets/json_data/drink_json.json');
     final data = await json.decode(response);
-    print("@@ ${DrinkModel.fromJson(data).id}");
     return DrinkModel.fromJson(data);
-    List<dynamic> jsonList = json.decode(response));
-    jsonList.map((json) => Model.fromJson(json)).toList());
   }
 }

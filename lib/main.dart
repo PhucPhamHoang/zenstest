@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:zenstest/data/model/drink_model.dart';
-import 'package:zenstest/static/enum/orderSizeEnum.dart';
+import 'package:zenstest/data/model/size_model.dart';
+import 'package:zenstest/data/model/topping_model.dart';
 import 'component/AppStyle.dart';
 import 'package:badges/badges.dart' as badges;
+import 'data/model/option_model.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,28 +18,47 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  int _quantity = 0;
-  OrderSizeEnum? currentOrderSize;
-  OrderSideEnum? currentOrderSide;
-  late Future<DrinkModel?> model;
+  late ValueNotifier<int> _quantityNotifier;
+  late ValueNotifier<double> _totalPrice;
+  late TextEditingController noteController = TextEditingController();
+  ValueNotifier<SizeModel> currentOrderSize =
+      ValueNotifier(SizeModel(id: 0, name: "", price: 0));
+  ValueNotifier<ToppingModel> currentOrderTopping =
+      ValueNotifier(ToppingModel(id: 0, name: "", price: 0));
+  ValueNotifier<OptionModel> currentOrderOption =
+      ValueNotifier(OptionModel(id: 0, name: "", price: 0));
+  DrinkModel? drinkModel;
+  List<OptionModel>? optionModel;
+  List<SizeModel>? sizeModel;
+  List<ToppingModel>? toppingModel;
+  late double basePrice;
   final Color _defaultColor = const Color.fromRGBO(254, 114, 76, 1);
+
   @override
   void initState() {
-    model.getData().then((value) => null);
+    _quantityNotifier = ValueNotifier<int>(0);
+    _totalPrice = ValueNotifier<double>(0);
     super.initState();
   }
-  void _incrementCounter() {
-    setState(() {
-      _quantity++;
-    });
+
+  Future<void> _incrementCounter() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    _quantityNotifier.value += 1;
+    _totalPrice.value = (basePrice +
+            currentOrderTopping.value.price +
+            currentOrderSize.value.price) *
+        _quantityNotifier.value;
   }
 
-  void _decrementCounter() {
-    setState(() {
-      if (_quantity > 0) {
-        _quantity--;
-      }
-    });
+  Future<void> _decrementCounter() async {
+    if (_quantityNotifier.value > 0) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      _quantityNotifier.value -= 1;
+      _totalPrice.value = (basePrice +
+              currentOrderTopping.value.price +
+              currentOrderSize.value.price) *
+          _quantityNotifier.value;
+    } else {}
   }
 
   @override
@@ -47,14 +68,26 @@ class _MyAppState extends State<MyApp> {
         body: Stack(
           children: [
             const SizedBox.expand(),
-            SizedBox(
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height * 0.3,
-              child: Image.network(
-                ,
-                fit: BoxFit.fill,
-              ),
-            ),
+            FutureBuilder(
+                future: DrinkModel.getData(),
+                builder:
+                    (BuildContext context, AsyncSnapshot<DrinkModel> snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CircularProgressIndicator();
+                  }
+                  if (snapshot.hasData) {
+                    basePrice = snapshot.data?.salePrice ?? 0;
+                    return SizedBox(
+                      width: MediaQuery.of(context).size.width,
+                      height: MediaQuery.of(context).size.height * 0.3,
+                      child: Image.asset(
+                        snapshot.data?.img ?? "",
+                        fit: BoxFit.fill,
+                      ),
+                    );
+                  }
+                  return Container();
+                }),
             Positioned(
                 top: MediaQuery.of(context).size.height * (0.3 / 6),
                 left: 25,
@@ -135,18 +168,28 @@ class _MyAppState extends State<MyApp> {
                 left: 0,
                 // bottom:0,
                 child: Container(
-                  height: MediaQuery.of(context).size.height * 0.735,
-                  width: MediaQuery.of(context).size.width,
-                  // color: Colors.amberAccent,
-                  decoration: const BoxDecoration(
-                    color: Color(0xfff0f1f4),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(20.0),
-                      topRight: Radius.circular(20.0),
+                    height: MediaQuery.of(context).size.height * 0.58,
+                    width: MediaQuery.of(context).size.width,
+                    // color: Colors.amberAccent,
+                    decoration: const BoxDecoration(
+                      color: Color(0xfff0f1f4),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20.0),
+                        topRight: Radius.circular(20.0),
+                      ),
                     ),
-                  ),
-                  child: _buildLowerContent(),
-                )),
+                    child: SingleChildScrollView(
+                      child: _buildLowerContent(),
+                    ))),
+            Positioned(
+                bottom: 0,
+                left: 0,
+                child: Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height * 0.15,
+                  color: Colors.white,
+                  child: _buildFooter(),
+                ))
           ],
         ),
       ),
@@ -159,78 +202,200 @@ class _MyAppState extends State<MyApp> {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 20, left: 18, right: 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Trà Đào mix Dâu",
-                style: AppStyle.exTremeBold,
-              ),
-              const SizedBox(
-                height: 5,
-              ),
-              Text(
-                "Thành phần: Cà phê nguyên chất, sữa, bột béo, đường, hương liệu,...",
-                style: AppStyle.medianLight,
-              ),
-              const SizedBox(
-                height: 7,
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+          child: FutureBuilder(
+              future: DrinkModel.getData(),
+              builder:
+                  (BuildContext context, AsyncSnapshot<DrinkModel> snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+                if (snapshot.hasData) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.star,
-                        size: 24,
-                        color: Colors.amber,
+                      Text(
+                        snapshot.data?.name ?? "",
+                        style: AppStyle.exTremeBold,
                       ),
                       const SizedBox(
-                        width: 3,
+                        height: 5,
                       ),
-                      Text('4.5', style: AppStyle.medianBold)
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Text('59.000đ',
-                          style: AppStyle.medianLight.copyWith(
-                              decoration: TextDecoration.lineThrough)),
+                      Text(
+                        snapshot.data?.description ?? "",
+                        style: AppStyle.medianLight,
+                      ),
                       const SizedBox(
-                        width: 7,
+                        height: 7,
                       ),
-                      Text('45.000đ',
-                          style: AppStyle.exTremeBold.copyWith(
-                            color: _defaultColor,
-                          ))
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 24,
+                                color: Color.fromRGBO(255, 197, 41, 1),
+                              ),
+                              const SizedBox(
+                                width: 3,
+                              ),
+                              Text((snapshot.data?.rating ?? 0).toString(),
+                                  style: AppStyle.medianBold)
+                            ],
+                          ),
+                          RichText(
+                            text: TextSpan(children: <TextSpan>[
+                              TextSpan(
+                                  text: formatCurrency(
+                                      snapshot.data?.price ?? 0,
+                                      isPrice: false),
+                                  style: AppStyle.medianLight.copyWith(
+                                      decoration: TextDecoration.lineThrough,
+                                      color:
+                                          const Color.fromRGBO(97, 97, 1, 1))),
+                              TextSpan(
+                                  text:
+                                      ' ${formatCurrency(snapshot.data?.salePrice ?? 0, isPrice: false)}',
+                                  style: AppStyle.exTremeBold.copyWith(
+                                    color: _defaultColor,
+                                  )),
+                            ]),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(
+                        height: 30,
+                      ),
+                      _buildRichText("Chọn size ", "( Bắt buộc )"),
+                      FutureBuilder(
+                          future: SizeModel.getListData(),
+                          builder: (BuildContext context,
+                              AsyncSnapshot<List<SizeModel>> snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircularProgressIndicator();
+                            }
+                            if (snapshot.hasData) {
+                              if (snapshot.data != null) {
+                                return ValueListenableBuilder<SizeModel?>(
+                                    valueListenable: currentOrderSize,
+                                    builder: (BuildContext context,
+                                        SizeModel? value, Widget? child) {
+                                      List<Widget> sizeWidgets = snapshot.data!
+                                          .map((sizeModel) =>
+                                              _orderSizeOption(sizeModel))
+                                          .toList();
+                                      return Column(
+                                        children: sizeWidgets,
+                                      );
+                                    });
+                              }
+                            }
+                            return Container();
+                          }),
+                      const SizedBox(
+                        height: 25,
+                      ),
+                      _buildRichText("Món ăn kèm ", "( không bắt buộc )"),
+                      FutureBuilder(
+                          future: ToppingModel.getListData(),
+                          builder: (BuildContext context,
+                              AsyncSnapshot<List<ToppingModel>> snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircularProgressIndicator();
+                            }
+                            if (snapshot.hasData) {
+                              if (snapshot.data != null) {
+                                return ValueListenableBuilder<ToppingModel>(
+                                    valueListenable: currentOrderTopping,
+                                    builder: (BuildContext context,
+                                        ToppingModel value, Widget? child) {
+                                      List<Widget> sizeWidgets = snapshot.data!
+                                          .map((toppingModel) =>
+                                              _orderTopping(toppingModel))
+                                          .toList();
+                                      return Column(
+                                        children: sizeWidgets,
+                                      );
+                                    });
+                              }
+                            }
+                            return Container();
+                          }),
+                      const SizedBox(
+                        height: 25,
+                      ),
+                      _buildRichText(
+                          "Yêu cầu thành phần", "( không bắt buộc )"),
+                      FutureBuilder(
+                          future: OptionModel.getListData(),
+                          builder: (BuildContext context,
+                              AsyncSnapshot<List<OptionModel>> snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircularProgressIndicator();
+                            }
+                            if (snapshot.hasData) {
+                              if (snapshot.data != null) {
+                                return ValueListenableBuilder<OptionModel>(
+                                    valueListenable: currentOrderOption,
+                                    builder: (BuildContext context,
+                                        OptionModel value, Widget? child) {
+                                      List<Widget> sizeWidgets = snapshot.data!
+                                          .map((optionModel) =>
+                                              _orderOption(optionModel))
+                                          .toList();
+                                      return Column(
+                                        children: sizeWidgets,
+                                      );
+                                    });
+                              }
+                            }
+                            return Container();
+                          }),
+                      const SizedBox(
+                        height: 25,
+                      ),
+                      _buildRichText(
+                          "Thêm lưu ý cho quán", "( không bắt buộc )"),
+                      _buildTextField(),
+                      Text(
+                        "Việc thực hiện yêu cầu còn tùy thuộc vào khả năng của quán",
+                        style: AppStyle.normalMedium.copyWith(
+                            color: const Color.fromRGBO(97, 97, 1, 1)),
+                      )
                     ],
-                  ),
-                ],
-              ),
-              const SizedBox(
-                height: 30,
-              ),
-              _buildRichText("Chọn size ", "( Bắt buộc )"),
-              _orderSizeOption(OrderSizeEnum.small),
-              _orderSizeOption(OrderSizeEnum.medium),
-              _orderSizeOption(OrderSizeEnum.large),
-              const SizedBox(
-                height: 25,
-              ),
-              _buildRichText("Món ăn kèm ", "( không bắt buộc )"),
-              _orderSideOption(OrderSideEnum.cookie),
-              _orderSideOption(OrderSideEnum.cake),
-            ],
+                  );
+                }
+                return Container();
+              }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 10),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color.fromRGBO(247, 247, 247, 1),
+          borderRadius: BorderRadius.all(
+            Radius.circular(10.0),
           ),
         ),
-        Expanded(
-            child: Container(
-          width: MediaQuery.of(context).size.width,
-          color: Colors.white,
-          child: _buildFooter(),
-        ))
-      ],
+        child: TextField(
+          controller: noteController,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            hintText: 'Ghi chú ở đây',
+            contentPadding: EdgeInsets.all(10.0),
+            border: InputBorder.none,
+          ),
+        ),
+      ),
     );
   }
 
@@ -250,7 +415,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   Widget _buildInputQuantity() {
-    String formattedCounter = _quantity.toString().padLeft(2, '0');
     return Padding(
       padding: const EdgeInsets.only(top: 15, bottom: 17),
       child: Row(
@@ -258,7 +422,13 @@ class _MyAppState extends State<MyApp> {
         children: <Widget>[
           _buildInputQuantityButton(_decrementCounter, Icons.remove, "minus"),
           const SizedBox(width: 20),
-          Text(formattedCounter, style: AppStyle.largeBold),
+          ValueListenableBuilder<int>(
+            valueListenable: _quantityNotifier,
+            builder: (BuildContext context, int value, Widget? child) {
+              String formattedCounter = value.toString().padLeft(2, '0');
+              return Text(formattedCounter, style: AppStyle.largeBold);
+            },
+          ),
           const SizedBox(width: 20),
           _buildInputQuantityButton(_incrementCounter, Icons.add, "plus"),
         ],
@@ -275,37 +445,35 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  Widget _orderSizeOption(OrderSizeEnum orderSizeEnum) {
+  Widget _orderSizeOption(SizeModel sizeModel) {
     return Column(
       children: [
-        RadioListTile<OrderSizeEnum>(
+        RadioListTile<SizeModel>(
           contentPadding: EdgeInsets.zero,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                orderSizeEnum.title,
+                sizeModel.name,
                 style: AppStyle.medianMedium,
               ),
               Text(
-                orderSizeEnum.priceText,
+                formatCurrency(sizeModel.price),
                 style: AppStyle.normalMedium,
               ),
             ],
           ),
           activeColor: _defaultColor,
           tileColor: Colors.black12,
-          value: orderSizeEnum,
-          groupValue: currentOrderSize,
-          onChanged: (OrderSizeEnum? value) {
-            setState(() {
-              currentOrderSize = value;
-            });
+          value: sizeModel,
+          groupValue: currentOrderSize.value,
+          onChanged: (SizeModel? value) {
+            currentOrderSize.value = value!;
           },
           visualDensity: const VisualDensity(horizontal: -4),
         ),
         const Divider(
-          color: Colors.black12,
+          color: Color.fromRGBO(220, 220, 220, 1),
           thickness: 0.5,
           height: 0.5,
         )
@@ -313,37 +481,70 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  Widget _orderSideOption(OrderSideEnum orderSideEnum) {
+  Widget _orderTopping(ToppingModel toppingModel) {
     return Column(
       children: [
-        RadioListTile<OrderSideEnum>(
+        RadioListTile<ToppingModel>(
           contentPadding: EdgeInsets.zero,
           title: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                orderSideEnum.title,
+                toppingModel.name,
                 style: AppStyle.medianMedium,
               ),
               Text(
-                orderSideEnum.priceText,
+                formatCurrency(toppingModel.price),
                 style: AppStyle.normalMedium,
               ),
             ],
           ),
           activeColor: _defaultColor,
           tileColor: Colors.black12,
-          value: orderSideEnum,
-          groupValue: currentOrderSide,
-          onChanged: (OrderSideEnum? value) {
-            setState(() {
-              currentOrderSide = value;
-            });
+          value: toppingModel,
+          groupValue: currentOrderTopping.value,
+          onChanged: (ToppingModel? value) {
+            currentOrderTopping.value = value!;
           },
         ),
         const Divider(
-          color: Colors.orange,
-          thickness: 0.2,
+          color: Color.fromRGBO(220, 220, 220, 1),
+          thickness: 0.5,
+          height: 0.5,
+        )
+      ],
+    );
+  }
+
+  Widget _orderOption(OptionModel optionModel) {
+    return Column(
+      children: [
+        RadioListTile<OptionModel>(
+          contentPadding: EdgeInsets.zero,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                optionModel.name,
+                style: AppStyle.medianMedium,
+              ),
+              Text(
+                formatCurrency(optionModel.price),
+                style: AppStyle.normalMedium,
+              ),
+            ],
+          ),
+          activeColor: _defaultColor,
+          tileColor: Colors.black12,
+          value: optionModel,
+          groupValue: currentOrderOption.value,
+          onChanged: (OptionModel? value) {
+            currentOrderOption.value = value!;
+          },
+        ),
+        const Divider(
+          color: Color.fromRGBO(220, 220, 220, 1),
+          thickness: 0.5,
           height: 0.5,
         )
       ],
@@ -373,25 +574,38 @@ class _MyAppState extends State<MyApp> {
                   color: Colors.white,
                 ),
                 padding: const EdgeInsets.all(8),
-                child: Icon(
-                  Icons.shopping_bag,
+                child: Image.asset(
+                  "assets/icons/bag.png",
                   color: _defaultColor,
-                  size: 24,
+                  height: 16,
+                  width: 16,
                 ),
               ),
               const SizedBox(width: 5),
-              Text('Thêm vào đơn - 62.000đ',
-                  style: AppStyle.medianBold.copyWith(color: Colors.white)),
+              ValueListenableBuilder<double>(
+                valueListenable: _totalPrice,
+                builder: (BuildContext context, double value, Widget? child) {
+                  return Text(
+                      'Thêm vào đơn - ${formatCurrency(value, isPrice: false)}',
+                      style: AppStyle.medianBold.copyWith(color: Colors.white));
+                },
+              ),
             ],
           ),
-        )
+        ),
       ],
     );
   }
 
-  double parseCurrencyStringToDouble(String value) {
-    String cleanedValue = value.replaceAll(RegExp(r'[+đ]'), '');
-    double number = double.parse(cleanedValue);
-    return number;
+  String formatCurrency(double value, {bool isPrice = true}) {
+    String formattedValue = value.toStringAsFixed(0);
+    final RegExp regex = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    formattedValue =
+        formattedValue.replaceAllMapped(regex, (Match match) => '${match[1]}.');
+    if (isPrice && (value > 0)) {
+      formattedValue = '+$formattedValue';
+    }
+    formattedValue += 'đ';
+    return formattedValue;
   }
 }
